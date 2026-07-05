@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SubTrack — จัดการซับสคริปชันในที่เดียว</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;450;500;600&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  :root{
+    --canvas:#F5F6F3; --surface:#FFFFFF; --ink:#1B2320; --sub:#6C736E; --faint:#9AA09B;
+    --line:#E8EAE5; --line2:#EEF0EC;
+    --brand:#0E7C6B; --brand-dark:#0B5F52; --brand-tint:#E7F2EF;
+    --ai:#6C5CE7; --ai-t:#EEEBFB; --stream:#E8654F; --stream-t:#FCECE8;
+    --prod:#D99A2B; --prod-t:#FAF0DC; --store:#3B82C4; --store-t:#E7F0F9;
+    --warn:#C6552F; --warn-t:#FBEDE6;
+    --r:14px; --rs:10px;
+    --shadow:0 1px 2px rgba(27,35,32,.04), 0 4px 16px rgba(27,35,32,.04);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--canvas);color:var(--ink);font-family:"Inter","IBM Plex Sans Thai",system-ui,sans-serif;font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;}
+  .th{font-family:"IBM Plex Sans Thai","Inter",sans-serif}
+  .num{font-family:"Space Grotesk","Inter",sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+  ::selection{background:var(--brand-tint)}
+  a{color:inherit;text-decoration:none}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+
+  .app{display:grid;grid-template-columns:236px 1fr;min-height:100vh}
+
+  /* Sidebar */
+  .side{background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:20px 16px;position:sticky;top:0;height:100vh}
+  .brand{display:flex;align-items:center;gap:9px;padding:4px 8px 18px}
+  .logo{width:26px;height:26px;border-radius:8px;background:var(--brand);display:grid;place-items:center;color:#fff}
+  .logo svg{width:15px;height:15px}
+  .brand .name{font-family:"Space Grotesk";font-weight:600;font-size:17px;letter-spacing:-.02em}
+  .addbtn{display:flex;align-items:center;justify-content:center;gap:7px;background:var(--brand);color:#fff;font-weight:500;font-size:13.5px;padding:10px;border-radius:var(--rs);transition:background .15s;margin-bottom:16px}
+  .addbtn:hover{background:var(--brand-dark)}
+  .addbtn svg{width:16px;height:16px}
+  .navlbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);padding:0 10px 8px;font-weight:600}
+  .nav{display:flex;flex-direction:column;gap:2px}
+  .nav a{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:var(--rs);color:var(--sub);font-weight:450;font-size:13.5px;transition:.15s}
+  .nav a svg{width:17px;height:17px;stroke-width:1.9}
+  .nav a:hover{background:var(--canvas);color:var(--ink)}
+  .nav a.on{background:var(--brand-tint);color:var(--brand-dark);font-weight:500}
+  .side-foot{margin-top:auto;padding-top:16px;border-top:1px solid var(--line2)}
+  .savecard{background:var(--brand-tint);border-radius:var(--rs);padding:12px;margin-bottom:8px}
+  .savecard .k{font-size:11.5px;color:var(--brand-dark);font-weight:500;display:flex;align-items:center;gap:6px}
+  .savecard .k svg{width:13px;height:13px}
+  .savecard .v{font-family:"Space Grotesk";font-weight:600;font-size:20px;color:var(--brand-dark);margin-top:3px}
+  .savecard .n{font-size:11px;color:var(--brand);margin-top:1px}
+
+  /* Main */
+  .main{padding:26px 34px 60px;max-width:1180px}
+  .topbar{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px}
+  .hi{font-family:"Space Grotesk";font-weight:600;font-size:22px;letter-spacing:-.02em}
+  .hi-sub{color:var(--sub);font-size:13px;margin-top:2px}
+  .date{color:var(--faint);font-size:12.5px;text-align:right}
+
+  .view{display:none;animation:rise .35s ease both}
+  .view.on{display:block}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* Stat cards */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 17px;box-shadow:var(--shadow)}
+  .stat .l{font-size:12.5px;color:var(--sub);display:flex;align-items:center;gap:6px}
+  .stat .l svg{width:14px;height:14px;color:var(--faint)}
+  .stat .v{font-family:"Space Grotesk";font-weight:600;font-size:26px;margin-top:8px;letter-spacing:-.02em}
+  .stat .n{font-size:11.5px;color:var(--faint);margin-top:3px}
+  .stat.accent{background:var(--brand);border-color:var(--brand)}
+  .stat.accent .l,.stat.accent .v,.stat.accent .n{color:#fff}
+  .stat.accent .l svg{color:rgba(255,255,255,.75)}
+  .stat.accent .n{color:rgba(255,255,255,.8)}
+
+  .grid2{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;margin-bottom:16px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;box-shadow:var(--shadow)}
+  .card h3{font-size:14px;font-weight:600;letter-spacing:-.01em}
+  .card .csub{font-size:12px;color:var(--faint);margin-top:1px;margin-bottom:6px}
+  .card-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+  .vall{font-size:12px;color:var(--brand);font-weight:500}
+
+  /* Chart */
+  .chart{width:100%;height:auto;display:block;margin-top:4px}
+  .chart .grid{stroke:var(--line);stroke-width:1;stroke-dasharray:3 4}
+  .chart .area{fill:var(--brand-tint);opacity:.55}
+  .chart .linep{fill:none;stroke:var(--brand);stroke-width:2.4;stroke-linejoin:round;stroke-linecap:round;stroke-dasharray:900;stroke-dashoffset:900;animation:draw 1.2s .2s ease forwards}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  .chart .dot{fill:#fff;stroke:var(--brand);stroke-width:2}
+  .chart text{fill:var(--faint);font-size:10px;font-family:"Inter"}
+  .step-note{font-size:11px;color:var(--faint);margin-top:8px;display:flex;gap:14px;flex-wrap:wrap}
+  .step-note span{display:flex;align-items:center;gap:5px}
+  .step-note i{width:6px;height:6px;border-radius:50%;background:var(--brand);display:inline-block}
+
+  /* Category bars */
+  .catrow{display:flex;align-items:center;gap:11px;margin:13px 0}
+  .catrow:first-of-type{margin-top:2px}
+  .cdot{width:9px;height:9px;border-radius:3px;flex-shrink:0}
+  .clab{width:118px;flex-shrink:0;font-size:12.5px}
+  .clab b{font-weight:500}
+  .clab span{color:var(--faint);font-size:11px}
+  .ctrack{flex:1;height:9px;background:var(--line2);border-radius:6px;overflow:hidden}
+  .cfill{height:100%;border-radius:6px;width:0;transition:width .9s cubic-bezier(.2,.7,.2,1)}
+  .camt{width:92px;text-align:right;font-size:12.5px;font-family:"Space Grotesk";font-variant-numeric:tabular-nums;flex-shrink:0}
+
+  /* Renewals list */
+  .rrow{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line2)}
+  .rrow:last-child{border-bottom:none;padding-bottom:0}
+  .rrow .ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;flex-shrink:0;font-family:"Space Grotesk";font-weight:600;font-size:13px}
+  .rrow .rn{flex:1;min-width:0}
+  .rrow .rn .t{font-size:13.5px;font-weight:500}
+  .rrow .rn .c{font-size:11.5px;color:var(--faint)}
+  .rrow .rp{text-align:right}
+  .rrow .rp .a{font-family:"Space Grotesk";font-weight:600;font-size:13.5px;font-variant-numeric:tabular-nums}
+  .chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:20px;background:var(--canvas);color:var(--sub);font-weight:500}
+  .chip.soon{background:var(--warn-t);color:var(--warn)}
+  .chip svg{width:11px;height:11px}
+  .line-note{margin-top:14px;font-size:11.5px;color:var(--sub);display:flex;align-items:center;gap:7px;background:var(--canvas);padding:9px 12px;border-radius:var(--rs)}
+  .line-note svg{width:14px;height:14px;color:#06C755}
+
+  /* Subscriptions */
+  .page-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+  .page-head h2{font-family:"Space Grotesk";font-weight:600;font-size:20px;letter-spacing:-.02em}
+  .page-head .cnt{color:var(--faint);font-weight:400;font-size:14px;font-family:"Inter"}
+  .chips{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .fchip{font-size:12.5px;padding:6px 13px;border-radius:20px;border:1px solid var(--line);color:var(--sub);background:var(--surface);transition:.15s}
+  .fchip:hover{border-color:var(--faint)}
+  .fchip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .list{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+  .lrow{display:grid;grid-template-columns:1.7fr .9fr .9fr .7fr .8fr;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line2);transition:background .12s}
+  .lrow:last-child{border-bottom:none}
+  .lrow:hover{background:#FCFCFB}
+  .lrow.hd{padding:11px 20px;border-bottom:1px solid var(--line);background:#FBFBFA}
+  .lrow.hd span{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);font-weight:600}
+  .subname{display:flex;align-items:center;gap:12px;min-width:0}
+  .subname .ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex-shrink:0;font-family:"Space Grotesk";font-weight:600;font-size:14px}
+  .subname .nm{font-size:13.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .subname .cy{font-size:11px;color:var(--faint)}
+  .tag{font-size:11px;padding:3px 9px;border-radius:6px;font-weight:500;display:inline-block}
+  .price{font-family:"Space Grotesk";font-weight:600;font-size:14px;font-variant-numeric:tabular-nums}
+  .price small{font-family:"Inter";font-weight:400;color:var(--faint);font-size:11px}
+  .renew{font-size:12.5px;color:var(--sub)}
+  .rgt{display:flex;justify-content:flex-end;align-items:center;gap:12px}
+  .stpill{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500}
+  .stpill.active{background:var(--brand-tint);color:var(--brand-dark)}
+  .stpill.trial{background:var(--prod-t);color:#8a5e0e}
+  .toggle{width:34px;height:20px;border-radius:20px;background:var(--line);position:relative;flex-shrink:0;transition:.18s;cursor:pointer}
+  .toggle::after{content:"";position:absolute;width:15px;height:15px;border-radius:50%;background:#fff;top:2.5px;left:2.5px;transition:.18s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  .toggle.on{background:var(--brand)}
+  .toggle.on::after{left:16.5px}
+
+  /* Recommendations */
+  .rec-intro{color:var(--sub);font-size:13.5px;margin-bottom:16px;max-width:640px}
+  .recs{display:flex;flex-direction:column;gap:12px}
+  .rec{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow);display:flex;align-items:center;gap:16px}
+  .rec .ric{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;flex-shrink:0}
+  .rec .ric svg{width:20px;height:20px}
+  .rec .rbody{flex:1;min-width:0}
+  .rec .rbody .rt{font-size:14.5px;font-weight:600;letter-spacing:-.01em}
+  .rec .rbody .rd{font-size:12.5px;color:var(--sub);margin-top:2px}
+  .rec .rsave{text-align:right;flex-shrink:0}
+  .save-pill{background:var(--brand-tint);color:var(--brand-dark);font-family:"Space Grotesk";font-weight:600;font-size:13.5px;padding:6px 12px;border-radius:8px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .rec .ract{display:flex;gap:8px;flex-shrink:0}
+  .btn{font-size:12.5px;font-weight:500;padding:8px 14px;border-radius:9px;transition:.15s;white-space:nowrap}
+  .btn.primary{background:var(--brand);color:#fff}
+  .btn.primary:hover{background:var(--brand-dark)}
+  .btn.ghost{border:1px solid var(--line);color:var(--sub)}
+  .btn.ghost:hover{border-color:var(--faint);color:var(--ink)}
+
+  /* Settings */
+  .setlist{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;max-width:640px}
+  .setrow{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line2)}
+  .setrow:last-child{border-bottom:none}
+  .setrow .sl{font-size:13.5px;font-weight:500}
+  .setrow .sd{font-size:12px;color:var(--faint);margin-top:1px}
+  .setrow select{font-family:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+  .setrow .conn{display:flex;align-items:center;gap:7px;font-size:12.5px;color:#06C755;font-weight:500}
+  .setrow .conn svg{width:15px;height:15px}
+
+  /* Modal */
+  .overlay{position:fixed;inset:0;background:rgba(27,35,32,.4);display:none;align-items:center;justify-content:center;padding:20px;z-index:50;animation:fade .2s ease}
+  .overlay.on{display:flex}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .modal{background:var(--surface);border-radius:18px;padding:22px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:pop .25s ease}
+  @keyframes pop{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+  .modal .mh{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
+  .modal .mh h3{font-family:"Space Grotesk";font-weight:600;font-size:17px}
+  .modal .mh p{font-size:12.5px;color:var(--sub);margin-top:2px}
+  .modal .x{color:var(--faint);padding:4px}
+  .modal .x svg{width:19px;height:19px}
+  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+  .tile{border:1px solid var(--line);border-radius:var(--rs);padding:16px 12px;text-align:center;transition:.15s}
+  .tile:hover{border-color:var(--brand);background:var(--brand-tint)}
+  .tile svg{width:22px;height:22px;color:var(--brand);margin-bottom:7px}
+  .tile .tt{font-size:12.5px;font-weight:500}
+  .tile .td{font-size:11px;color:var(--faint);margin-top:1px}
+  .email-row{display:flex;align-items:center;gap:10px;margin-top:10px;padding:12px;border:1px dashed var(--line);border-radius:var(--rs);color:var(--faint);font-size:12.5px}
+  .email-row svg{width:16px;height:16px}
+  .later{margin-left:auto;font-size:10.5px;background:var(--canvas);color:var(--faint);padding:2px 8px;border-radius:20px;font-weight:500}
+
+  .mobile-top{display:none}
+  @media(max-width:900px){
+    .app{grid-template-columns:1fr}
+    .side{display:none}
+    .mobile-top{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+    .mobile-top .mnav{display:flex;gap:4px}
+    .mobile-top .mnav a{padding:7px 11px;border-radius:8px;font-size:12.5px;color:var(--sub)}
+    .mobile-top .mnav a.on{background:var(--brand-tint);color:var(--brand-dark);font-weight:500}
+    .main{padding:20px 18px 50px}
+    .stats{grid-template-columns:1fr 1fr}
+    .grid2{grid-template-columns:1fr}
+    .lrow{grid-template-columns:1.4fr .8fr;gap:8px}
+    .lrow .col-cy,.lrow .col-rn{display:none}
+    .rec{flex-wrap:wrap}
+  }
+</style>
+</head>
+<body>
+
+<div class="mobile-top">
+  <div class="brand" style="padding:0"><div class="logo"><i data-lucide="layers"></i></div><span class="name">SubTrack</span></div>
+  <div class="mnav">
+    <a data-view="overview" class="on">Overview</a>
+    <a data-view="subs">Subs</a>
+    <a data-view="recs">Tips</a>
+  </div>
+</div>
+
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="side">
+    <div class="brand"><div class="logo"><i data-lucide="layers"></i></div><span class="name">SubTrack</span></div>
+    <button class="addbtn" onclick="openModal()"><i data-lucide="plus"></i> เพิ่มซับสคริปชัน</button>
+    <div class="navlbl">Menu</div>
+    <nav class="nav">
+      <a data-view="overview" class="on"><i data-lucide="layout-dashboard"></i> Overview</a>
+      <a data-view="subs"><i data-lucide="list"></i> Subscriptions</a>
+      <a data-view="recs"><i data-lucide="sparkles"></i> Recommendations</a>
+    </nav>
+    <div class="side-foot">
+      <div class="savecard">
+        <div class="k"><i data-lucide="piggy-bank"></i> Saved this year</div>
+        <div class="v num">฿4,760</div>
+        <div class="n">from 3 cancellations</div>
+      </div>
+      <nav class="nav"><a data-view="settings"><i data-lucide="settings"></i> Settings</a></nav>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="hi">สวัสดี, Natta</div>
+        <div class="hi-sub th">คุณมี 14 บริการที่กำลังใช้งาน — มี 5 รายการที่ควรตรวจสอบ</div>
+      </div>
+      <div class="date th">วันอาทิตย์<br/>5 กรกฎาคม 2569</div>
+    </div>
+
+    <!-- OVERVIEW -->
+    <section class="view on" id="overview">
+      <div class="stats">
+        <div class="stat"><div class="l"><i data-lucide="wallet"></i> Monthly spend</div><div class="v" id="s-month">฿0</div><div class="n">across 14 subscriptions</div></div>
+        <div class="stat"><div class="l"><i data-lucide="calendar"></i> Projected yearly</div><div class="v" id="s-year">฿0</div><div class="n">at current rate</div></div>
+        <div class="stat"><div class="l"><i data-lucide="layers"></i> Active subs</div><div class="v num">14</div><div class="n">in 4 categories</div></div>
+        <div class="stat accent"><div class="l"><i data-lucide="trending-down"></i> Potential savings</div><div class="v num">฿989<small style="font-size:14px;font-weight:500">/mo</small></div><div class="n">5 tips ready to review</div></div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-head"><div><h3>Monthly spending</h3><div class="csub">last 6 months · flat until you add something</div></div></div>
+          <svg class="chart" viewBox="0 0 520 150">
+            <line class="grid" x1="40" y1="30" x2="512" y2="30"/>
+            <line class="grid" x1="40" y1="80" x2="512" y2="80"/>
+            <text x="4" y="33">฿4.8k</text><text x="4" y="83">฿4.2k</text>
+            <path class="area" d="M40,95 L40,95 L132,95 L224,95 L224,58 L316,58 L408,58 L500,58 L500,26 L500,130 L40,130 Z"/>
+            <path class="linep" d="M40,95 L132,95 L224,95 L224,58 L316,58 L408,58 L500,58 L500,26"/>
+            <circle class="dot" cx="40" cy="95" r="3.5"/><circle class="dot" cx="132" cy="95" r="3.5"/><circle class="dot" cx="224" cy="58" r="3.5"/><circle class="dot" cx="316" cy="58" r="3.5"/><circle class="dot" cx="408" cy="58" r="3.5"/><circle class="dot" cx="500" cy="26" r="4"/>
+            <text x="40" y="146" text-anchor="middle">Feb</text><text x="132" y="146" text-anchor="middle">Mar</text><text x="224" y="146" text-anchor="middle">Apr</text><text x="316" y="146" text-anchor="middle">May</text><text x="408" y="146" text-anchor="middle">Jun</text><text x="500" y="146" text-anchor="middle">Jul</text>
+          </svg>
+          <div class="step-note"><span><i></i> Apr: added Apple TV+ &amp; HBO Max</span><span><i></i> Jul: added Gemini Advanced</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>Spending by category</h3></div>
+          <div id="cats"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div><h3>Upcoming renewals</h3><div class="csub">next to be charged</div></div><a class="vall" data-view="subs" href="#">view all →</a></div>
+        <div id="renewals"></div>
+        <div class="line-note"><i data-lucide="message-circle"></i> เตือนผ่าน LINE ล่วงหน้า 3 วันก่อนตัดเงิน — ยกเลิกทันก่อนโดนชาร์จ</div>
+      </div>
+    </section>
+
+    <!-- SUBSCRIPTIONS -->
+    <section class="view" id="subs">
+      <div class="page-head">
+        <h2>Subscriptions <span class="cnt">· 14 active</span></h2>
+        <button class="btn primary" onclick="openModal()" style="display:flex;align-items:center;gap:6px"><i data-lucide="plus" style="width:15px;height:15px"></i> Add new</button>
+      </div>
+      <div class="chips" id="chips">
+        <button class="fchip on" data-f="All">All</button>
+        <button class="fchip" data-f="AI">AI</button>
+        <button class="fchip" data-f="Streaming">Streaming</button>
+        <button class="fchip" data-f="Productivity">Productivity</button>
+        <button class="fchip" data-f="Storage">Storage</button>
+      </div>
+      <div class="list">
+        <div class="lrow hd">
+          <span>Service</span><span>Category</span><span class="col-rn">Renews</span><span>Reminder</span><span style="text-align:right">Price</span>
+        </div>
+        <div id="subrows"></div>
+      </div>
+      <div style="font-size:11.5px;color:var(--faint);margin-top:12px" class="th">เพิ่มได้หลายวิธี: อัปโหลด statement · สแกนสกรีนช็อต Apple ID · เพิ่มเอง</div>
+    </section>
+
+    <!-- RECOMMENDATIONS -->
+    <section class="view" id="recs">
+      <div class="page-head"><h2>Recommendations</h2></div>
+      <p class="rec-intro">SubTrack scores each subscription by <b>cost, how often you use it, and overlap</b> — then tells you what to do <i>before</i> the next charge. Not just a dashboard.</p>
+      <div class="recs">
+        <div class="rec">
+          <div class="ric" style="background:var(--ai-t);color:var(--ai)"><i data-lucide="brain"></i></div>
+          <div class="rbody"><div class="rt">You're paying for 3 AI assistants</div><div class="rd">ChatGPT, Claude and Gemini all active (฿2,100/mo). Keep the one you use most.</div></div>
+          <div class="rsave"><div class="save-pill">save ฿700/mo</div></div>
+          <div class="ract"><button class="btn ghost">Compare use</button></div>
+        </div>
+        <div class="rec">
+          <div class="ric" style="background:var(--stream-t);color:var(--stream)"><i data-lucide="circle-slash"></i></div>
+          <div class="rbody"><div class="rt">Cancel HBO Max</div><div class="rd">Not opened in 6 weeks. Renews 11 Aug.</div></div>
+          <div class="rsave"><div class="save-pill">save ฿289/mo</div></div>
+          <div class="ract"><button class="btn primary">How to cancel</button></div>
+        </div>
+        <div class="rec">
+          <div class="ric" style="background:var(--prod-t);color:var(--prod)"><i data-lucide="calendar-sync"></i></div>
+          <div class="rbody"><div class="rt">Switch Canva Pro to yearly</div><div class="rd">Used 8 months straight — annual billing is cheaper.</div></div>
+          <div class="rsave"><div class="save-pill">save ฿1,200/yr</div></div>
+          <div class="ract"><button class="btn ghost">Switch plan</button></div>
+        </div>
+        <div class="rec">
+          <div class="ric" style="background:var(--warn-t);color:var(--warn)"><i data-lucide="clock-alert"></i></div>
+          <div class="rbody"><div class="rt">Apple TV+ trial ends in 4 days</div><div class="rd">You'll be charged ฿199 on 29 Jul unless you cancel.</div></div>
+          <div class="rsave"><div class="save-pill">avoid ฿199</div></div>
+          <div class="ract"><button class="btn primary">Decide now</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" id="settings">
+      <div class="page-head"><h2>Settings</h2></div>
+      <div class="setlist">
+        <div class="setrow"><div><div class="sl">Reminder timing</div><div class="sd">How early to warn you before a charge</div></div>
+          <select><option>3 days before</option><option>7 days before</option><option>1 day before</option></select></div>
+        <div class="setrow"><div><div class="sl">LINE notifications</div><div class="sd">Get renewal alerts in LINE</div></div>
+          <div class="conn"><i data-lucide="check-circle"></i> Connected</div></div>
+        <div class="setrow"><div><div class="sl">Currency</div><div class="sd">Shown across the app</div></div>
+          <select><option>THB (฿)</option><option>USD ($)</option></select></div>
+        <div class="setrow"><div><div class="sl">Connected sources</div><div class="sd">Statements &amp; screenshots you've added</div></div>
+          <div class="sd" style="color:var(--sub)">3 uploads</div></div>
+        <div class="setrow"><div><div class="sl">Data &amp; privacy</div><div class="sd th">เราไม่เก็บเลขบัตรเครดิตของคุณ</div></div>
+          <button class="btn ghost">Delete my data</button></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Add modal -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="mh">
+      <div><h3>Add subscriptions</h3><p class="th">ให้ AI อ่านและจัดหมวดหมู่ให้อัตโนมัติ</p></div>
+      <button class="x" onclick="closeModal()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="tiles">
+      <div class="tile"><i data-lucide="file-text"></i><div class="tt">Upload statement</div><div class="td">bank / card PDF</div></div>
+      <div class="tile"><i data-lucide="smartphone"></i><div class="tt">Apple ID screenshot</div><div class="td">Settings › Subscriptions</div></div>
+      <div class="tile"><i data-lucide="bar-chart-3"></i><div class="tt">Usage screenshot</div><div class="td">Screen Time</div></div>
+      <div class="tile"><i data-lucide="pencil"></i><div class="tt">Add manually</div><div class="td">type it in</div></div>
+    </div>
+    <div class="email-row"><i data-lucide="mail"></i> Connect email <span class="later">later</span></div>
+  </div>
+</div>
+
+<script>
+  const CAT = {
+    AI:{c:'#6C5CE7',t:'#EEEBFB'}, Streaming:{c:'#E8654F',t:'#FCECE8'},
+    Productivity:{c:'#D99A2B',t:'#FAF0DC'}, Storage:{c:'#3B82C4',t:'#E7F0F9'}
+  };
+  const SUBS = [
+    {n:'ChatGPT Plus',cat:'AI',p:700,renew:'22 Jul',days:17,status:'active',remind:true},
+    {n:'Claude Pro',cat:'AI',p:700,renew:'19 Jul',days:14,status:'active',remind:true},
+    {n:'Gemini Advanced',cat:'AI',p:700,renew:'17 Jul',days:12,status:'active',remind:true},
+    {n:'Google Colab Pro',cat:'AI',p:359,renew:'27 Jul',days:22,status:'active',remind:false},
+    {n:'Netflix',cat:'Streaming',p:419,renew:'15 Jul',days:10,status:'active',remind:true},
+    {n:'Disney+ Hotstar',cat:'Streaming',p:289,renew:'24 Jul',days:19,status:'active',remind:true},
+    {n:'HBO Max',cat:'Streaming',p:289,renew:'11 Aug',days:37,status:'active',remind:false},
+    {n:'Apple TV+',cat:'Streaming',p:199,renew:'29 Jul',days:4,status:'trial',remind:true},
+    {n:'Prime Video',cat:'Streaming',p:149,renew:'06 Aug',days:32,status:'active',remind:false},
+    {n:'Spotify Premium',cat:'Streaming',p:149,renew:'18 Jul',days:13,status:'active',remind:true},
+    {n:'YouTube Premium',cat:'Streaming',p:159,renew:'02 Aug',days:28,status:'active',remind:false},
+    {n:'Canva Pro',cat:'Productivity',p:399,renew:'02 Aug',days:28,status:'active',remind:false},
+    {n:'Microsoft 365',cat:'Productivity',p:219,renew:'09 Aug',days:35,status:'active',remind:false},
+    {n:'iCloud+',cat:'Storage',p:99,renew:'28 Jul',days:23,status:'active',remind:true},
+  ];
+  const baht = n => '฿'+n.toLocaleString('en-US');
+  const initials = n => n.replace(/\+.*/,'').trim().split(' ').slice(0,1)[0].slice(0,2);
+
+  // stats
+  const monthly = SUBS.reduce((s,x)=>s+x.p,0);
+  document.getElementById('s-month').textContent = baht(monthly);
+  document.getElementById('s-year').textContent = baht(monthly*12);
+
+  // category breakdown
+  const totals = {};
+  SUBS.forEach(s=>{totals[s.cat]=totals[s.cat]||{sum:0,n:0}; totals[s.cat].sum+=s.p; totals[s.cat].n++;});
+  const max = Math.max(...Object.values(totals).map(t=>t.sum));
+  const order = ['AI','Streaming','Productivity','Storage'];
+  document.getElementById('cats').innerHTML = order.map(k=>`
+    <div class="catrow">
+      <span class="cdot" style="background:${CAT[k].c}"></span>
+      <span class="clab"><b>${k}</b> <span>· ${totals[k].n} subs</span></span>
+      <span class="ctrack"><span class="cfill" data-w="${Math.round(totals[k].sum/max*100)}" style="background:${CAT[k].c}"></span></span>
+      <span class="camt">${baht(totals[k].sum)}</span>
+    </div>`).join('');
+  setTimeout(()=>document.querySelectorAll('.cfill').forEach(f=>f.style.width=f.dataset.w+'%'),120);
+
+  // renewals (soonest 5)
+  const soon = [...SUBS].sort((a,b)=>a.days-b.days).slice(0,5);
+  document.getElementById('renewals').innerHTML = soon.map(s=>`
+    <div class="rrow">
+      <div class="ic" style="background:${CAT[s.cat].t};color:${CAT[s.cat].c}">${initials(s.n)}</div>
+      <div class="rn"><div class="t">${s.n}</div><div class="c">${s.cat}</div></div>
+      <span class="chip ${s.days<=7?'soon':''}">${s.days<=7?'<i data-lucide="clock"></i> ':''}in ${s.days} days</span>
+      <div class="rp"><div class="a">${baht(s.p)}</div></div>
+    </div>`).join('');
+
+  // subscription rows
+  function renderSubs(filter='All'){
+    const rows = SUBS.filter(s=>filter==='All'||s.cat===filter);
+    document.getElementById('subrows').innerHTML = rows.map((s,i)=>`
+      <div class="lrow">
+        <div class="subname">
+          <div class="ic" style="background:${CAT[s.cat].t};color:${CAT[s.cat].c}">${initials(s.n)}</div>
+          <div style="min-width:0"><div class="nm">${s.n}</div><div class="cy col-cy">monthly</div></div>
+        </div>
+        <div><span class="tag" style="background:${CAT[s.cat].t};color:${CAT[s.cat].c}">${s.cat}</span></div>
+        <div class="renew col-rn">${s.renew}</div>
+        <div><span class="toggle ${s.remind?'on':''}" onclick="this.classList.toggle('on')"></span></div>
+        <div class="rgt"><span class="stpill ${s.status}">${s.status}</span><span class="price">${baht(s.p)}<small>/mo</small></span></div>
+      </div>`).join('');
+  }
+  renderSubs();
+  document.querySelectorAll('#chips .fchip').forEach(c=>c.onclick=()=>{
+    document.querySelectorAll('#chips .fchip').forEach(x=>x.classList.remove('on'));
+    c.classList.add('on'); renderSubs(c.dataset.f);
+  });
+
+  // navigation
+  function go(v){
+    document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on',s.id===v));
+    document.querySelectorAll('[data-view]').forEach(a=>a.classList.toggle('on',a.dataset.view===v));
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  document.querySelectorAll('[data-view]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();go(a.dataset.view);}));
+
+  // modal
+  function openModal(){document.getElementById('overlay').classList.add('on');}
+  function closeModal(){document.getElementById('overlay').classList.remove('on');}
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+  if (window.lucide) lucide.createIcons();
+</script>
+</body>
+</html>
